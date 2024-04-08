@@ -1,16 +1,14 @@
 FUNC main
 
-CREATE_VAR int x
-SET_VAR x 10
+CREATE_VAR float x
+SET_VAR x 3.1415
 
-CREATE_VAR int y
-SET_VAR y 10
+DIV x 2 x
 
-CREATE_VAR int z
-add_inc x y z
+CREATE_VAR float res
+math_sin x res
 
-CREATE_VAR bool a ; test
-GT z x a
+add_inc 10 11 x
 
 END
 

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, env::Args};
 
 use crate::{
     data::{get_from_scope, get_from_scope_mut, DataType},
@@ -154,13 +154,13 @@ fn execute_line(
                         let variable = if let DataType::Identifier(i) = variable_name {
                             get_from_scope(local_scope, global_scope, i).unwrap()
                         } else {
-                            panic!()
+                            variable_name.clone()
                         };
 
                         let type_ = if let DataType::Identifier(i) = type_expected {
                             DataType::string_as_type(i)
                         } else {
-                            panic!()
+                            type_expected.clone()
                         };
 
                         if !type_.same_type(&variable) {
@@ -193,8 +193,52 @@ fn execute_line(
                 }
             }
 
-            if let Some(func) = inbuilt.get(function_name) {
-                unimplemented!()
+            if let Some((parametres, function)) = inbuilt.get(function_name) {
+                if arguments.len() < parametres.len() {
+                    panic!()
+                }
+
+                let args = if !parametres.is_empty() {
+                    let mut args = HashMap::new();
+
+                    for ((name, type_expected), variable_name) in parametres.iter().zip(arguments) {
+                        let variable = if let DataType::Identifier(i) = variable_name {
+                            get_from_scope(local_scope, global_scope, i).unwrap()
+                        } else {
+                            variable_name.clone()
+                        };
+
+                        let type_ = if let DataType::Identifier(i) = type_expected {
+                            DataType::string_as_type(i)
+                        } else {
+                            type_expected.clone()
+                        };
+
+                        if !type_.same_type(&variable) {
+                            panic!()
+                        }
+
+                        args.insert(name.clone(), variable.clone());
+                    }
+
+                    Some(args)
+                } else {
+                    None
+                };
+
+                if let Some(values) = function(local_scope, global_scope, args) {
+                    let store_ret_vals_len = arguments.len() - parametres.len();
+                    if store_ret_vals_len != values.len() {
+                        panic!()
+                    }
+
+                    set_return_values(
+                        local_scope,
+                        global_scope,
+                        &arguments[store_ret_vals_len..],
+                        &values,
+                    );
+                }
             }
         }
         Instruction::Return(i) => {

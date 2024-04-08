@@ -1,7 +1,4 @@
-use crate::{
-    data::{get_from_scope, get_from_scope_mut, DataType},
-    parser::Instruction,
-};
+use crate::{data::DataType, parser::Instruction};
 use std::collections::HashMap;
 
 mod arithmetic;
@@ -12,14 +9,12 @@ mod variable;
 
 pub type Scope = HashMap<String, DataType>;
 pub type InbuiltFunction = HashMap<
-    String,
+    String, // function name
     (
-        Box<dyn Fn(&mut Scope, &mut Scope, Vec<(String, DataType)>) -> Option<Vec<DataType>>>,
-        i16,
-        u8,
+        Vec<(String, DataType)>, // arguments expected
+        Box<dyn Fn(&mut Scope, &mut Scope, Option<Scope>) -> Option<Vec<DataType>>>, // local scope, global scope, arguments
     ),
 >;
-// name -> function, no of params, no of return values
 
 enum StatementReturn {
     None,
@@ -31,7 +26,7 @@ enum StatementReturn {
 
 pub fn execute(instructions: Vec<Instruction>) {
     let mut global_scope = Scope::new();
-    let inbuilt = InbuiltFunction::new();
+    let inbuilt = inbuilts();
 
     let main_function_index = function::get_function_index(&instructions, "main").unwrap();
     function::run_function(
@@ -41,4 +36,24 @@ pub fn execute(instructions: Vec<Instruction>) {
         &mut global_scope,
         &inbuilt,
     );
+}
+
+fn inbuilts() -> InbuiltFunction {
+    let mut inbuilt_functions = InbuiltFunction::new();
+
+    inbuilt_functions.insert(
+        String::from("math_sin"),
+        (
+            vec![(String::from("x"), DataType::Float(None))],
+            Box::new(|_, _, arguments| {
+                if let Some(DataType::Float(Some(i))) = arguments.unwrap().get("x") {
+                    Some(vec![DataType::Float(Some(i.sin()))])
+                } else {
+                    panic!()
+                }
+            }),
+        ),
+    );
+
+    inbuilt_functions
 }
