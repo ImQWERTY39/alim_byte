@@ -1,5 +1,5 @@
 use crate::{data::DataType, parser::Instruction};
-use std::collections::HashMap;
+use std::{collections::HashMap, io::Write};
 
 mod arithmetic;
 mod comparision;
@@ -51,6 +51,46 @@ fn inbuilts() -> InbuiltFunction {
                 } else {
                     panic!()
                 }
+            }),
+        ),
+    );
+
+    inbuilt_functions.insert(
+        String::from("std_print"),
+        (
+            vec![(String::from("value"), DataType::Identifier(String::new()))],
+            Box::new(|local_scope, global_scope, arguments| {
+                print!(
+                    "{}",
+                    arguments
+                        .unwrap()
+                        .get("value")
+                        .unwrap()
+                        .printable_string(&local_scope, &global_scope)
+                );
+                std::io::stdout().flush().unwrap();
+
+                None
+            }),
+        ),
+    );
+
+    inbuilt_functions.insert(
+        String::from("std_println"),
+        (
+            vec![(String::from("value"), DataType::Identifier(String::new()))],
+            Box::new(|local_scope, global_scope, arguments| {
+                println!(
+                    "{}",
+                    arguments
+                        .unwrap()
+                        .get("value")
+                        .unwrap()
+                        .printable_string(&local_scope, &global_scope)
+                );
+                std::io::stdout().flush().unwrap();
+
+                None
             }),
         ),
     );

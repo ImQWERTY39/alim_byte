@@ -19,6 +19,7 @@ impl DataType {
             (DataType::Boolean(_), DataType::Boolean(_)) => true,
             (DataType::Character(_), DataType::Character(_)) => true,
             (DataType::String(_), DataType::String(_)) => true,
+            (DataType::Identifier(_), _) => true,
             _ => false,
         }
     }
@@ -29,7 +30,7 @@ impl DataType {
             "bool" => DataType::Boolean(None),
             "char" => DataType::Character(None),
             "String" => DataType::String(None),
-            _ => unimplemented!(),
+            i => DataType::Identifier(i.to_string()),
         }
     }
 
@@ -272,6 +273,26 @@ impl DataType {
             }
             _ => panic!(),
         }
+    }
+
+    pub fn printable_string(&self, local_scope: &Scope, global_scope: &Scope) -> String {
+        let str;
+
+        match self {
+            DataType::Integer(Some(i)) => str = i.to_string(),
+            DataType::Float(Some(i)) => str = i.to_string(),
+            DataType::Boolean(Some(i)) => str = i.to_string(),
+            DataType::Character(Some(i)) => str = i.to_string(),
+            DataType::String(Some(i)) => str = i.clone(),
+            DataType::Identifier(i) => {
+                str = get_from_scope(local_scope, global_scope, i)
+                    .unwrap()
+                    .printable_string(local_scope, global_scope)
+            }
+            _ => panic!(),
+        }
+
+        str
     }
 }
 

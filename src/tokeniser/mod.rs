@@ -10,7 +10,7 @@ pub enum Token {
 
 pub fn tokenise(program: &str) -> Vec<Vec<Token>> {
     program
-        .split('\n')
+        .lines()
         .map(|x| x.trim())
         .filter(|x| !x.is_empty())
         .filter(|x| !x.starts_with(';'))

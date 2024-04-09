@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env::Args};
+use std::collections::HashMap;
 
 use crate::{
     data::{get_from_scope, get_from_scope_mut, DataType},
@@ -35,11 +35,6 @@ pub fn run_function(
             StatementReturn::Skip(i) => current_index += i,
             StatementReturn::Return(i) => return Some(i),
         }
-
-        println!(
-            "local_scope: {:#?}\ngloabal_scope: {:#?}\n\n",
-            local_scope, global_scope
-        );
 
         current_index += 1;
     }
@@ -191,9 +186,7 @@ fn execute_line(
                         &values,
                     );
                 }
-            }
-
-            if let Some((parametres, function)) = inbuilt.get(function_name) {
+            } else if let Some((parametres, function)) = inbuilt.get(function_name) {
                 if arguments.len() < parametres.len() {
                     panic!()
                 }
@@ -239,6 +232,8 @@ fn execute_line(
                         &values,
                     );
                 }
+            } else {
+                panic!("Function not found: {}", function_name)
             }
         }
         Instruction::Return(i) => {

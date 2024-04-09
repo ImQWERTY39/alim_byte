@@ -5,18 +5,11 @@ SET_VAR x 3.1415
 
 DIV x 2 x
 
+std_println x
+
 CREATE_VAR float res
 math_sin x res
 
-add_inc 10 11 x
+std_println res
 
 END
-
-
-FUNC add_inc int x int y
-
-CREATE_VAR int a
-ADD x y a
-ADD a 1 a
-
-RETURN a
