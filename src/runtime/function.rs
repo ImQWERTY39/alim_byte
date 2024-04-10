@@ -280,13 +280,12 @@ fn is_true(condition: &DataType, local_scope: &mut Scope, global_scope: &mut Sco
     }
 
     if let DataType::Identifier(i) = condition {
-        if let DataType::Boolean(Some(true)) = get_from_scope(local_scope, global_scope, i).unwrap()
-        {
-            return true;
+        if let DataType::Boolean(Some(i)) = get_from_scope(local_scope, global_scope, i).unwrap() {
+            return i;
         }
     }
 
-    false
+    panic!()
 }
 
 pub fn get_function_index(instructions: &[Instruction], function_name: &str) -> Option<usize> {

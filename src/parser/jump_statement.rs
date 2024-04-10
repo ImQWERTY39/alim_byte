@@ -44,7 +44,7 @@ pub fn go_back_if(arguments: Vec<Token>) -> Result<Instruction, ()> {
         return Err(());
     }
 
-    let condition = DataType::token_as_type(&arguments[1]);
+    let condition = DataType::token_as_type(&arguments[0]);
 
     Ok(Instruction::GoBackIf(condition))
 }

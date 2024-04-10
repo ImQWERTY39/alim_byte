@@ -1,15 +1,20 @@
 FUNC main
 
-CREATE_VAR float x
-SET_VAR x 3.1415
+CREATE_VAR int a
+CREATE_VAR bool b
 
-DIV x 2 x
+SET_VAR a 0
 
-std_println x
+GOTO iter
 
-CREATE_VAR float res
-math_sin x res
+END
 
-std_println res
 
+BLOCK iter
+
+ADD a 1 a
+std_print a
+LT a 1000000000 b
+
+GO_BACK_IF b
 END
