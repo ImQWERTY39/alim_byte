@@ -1,329 +1,207 @@
-use crate::runtime::Scope;
-use crate::tokeniser::Token;
+use std::collections::HashMap;
+
+type Members = HashMap<String, Data>;
 
 #[derive(Debug, Clone)]
-pub enum DataType {
-    Integer(Option<i64>),
-    Float(Option<f64>),
-    Boolean(Option<bool>),
-    Character(Option<char>),
-    String(Option<String>),
-    Identifier(String),
+pub enum Data {
+    Integer(i64),
+    Float(f64),
+    Boolean(bool),
+    Character(char),
+    String(String),
+    Struct(String, Members), // name, fields
 }
 
-impl DataType {
+#[derive(Clone)]
+pub enum Type {
+    Any,
+    Integer,
+    Float,
+    Boolean,
+    Character,
+    String,
+    Struct(String),
+}
+
+impl From<String> for Type {
+    fn from(value: String) -> Self {
+        match value.as_str() {
+            "any" => Type::Any,
+            "int" => Type::Integer,
+            "float" => Type::Float,
+            "bool" => Type::Boolean,
+            "char" => Type::Character,
+            "String" => Type::String,
+            _ => Type::Struct(value),
+        }
+    }
+}
+
+impl Data {
+    pub fn is_type(&self, type_: Type) -> bool {
+        if matches!(type_, Type::Any) {
+            return true;
+        }
+
+        match (self, type_) {
+            (Data::Integer(_), Type::Integer) => true,
+            (Data::Float(_), Type::Float) => true,
+            (Data::Boolean(_), Type::Boolean) => true,
+            (Data::Character(_), Type::Character) => true,
+            (Data::String(_), Type::String) => true,
+            (Data::Struct(i, _), Type::Struct(j)) => *i == j,
+            _ => false,
+        }
+    }
+
     pub fn same_type(&self, other: &Self) -> bool {
         match (self, other) {
-            (DataType::Integer(_), DataType::Integer(_)) => true,
-            (DataType::Float(_), DataType::Float(_)) => true,
-            (DataType::Boolean(_), DataType::Boolean(_)) => true,
-            (DataType::Character(_), DataType::Character(_)) => true,
-            (DataType::String(_), DataType::String(_)) => true,
-            (DataType::Identifier(_), _) => true,
-            _ => false,
-        }
-    }
-    pub fn string_as_type(type_str: &str) -> Self {
-        match type_str {
-            "int" => DataType::Integer(None),
-            "float" => DataType::Float(None),
-            "bool" => DataType::Boolean(None),
-            "char" => DataType::Character(None),
-            "String" => DataType::String(None),
-            i => DataType::Identifier(i.to_string()),
-        }
-    }
-
-    pub fn token_as_type(token: &Token) -> Self {
-        match token {
-            Token::Identifier(i) => Self::Identifier(i.clone()),
-            Token::Integer(i) => Self::Integer(Some(*i)),
-            Token::Boolean(i) => Self::Boolean(Some(*i)),
-            Token::Float(i) => Self::Float(Some(*i)),
-            Token::Character(i) => Self::Character(Some(*i)),
-            Token::String(i) => Self::String(Some(i.clone())),
-        }
-    }
-
-    pub fn equal_to(&self, other: &DataType, local_scope: &Scope, global_scope: &Scope) -> bool {
-        let lhs = if let Self::Identifier(i) = self {
-            get_from_scope(local_scope, global_scope, i).unwrap()
-        } else {
-            self.clone()
-        };
-
-        let rhs = if let Self::Identifier(i) = other {
-            get_from_scope(local_scope, global_scope, i).unwrap()
-        } else {
-            other.clone()
-        };
-
-        match (lhs, rhs) {
-            (DataType::Integer(i), DataType::Integer(j)) => i.unwrap() == j.unwrap(),
-            (DataType::Integer(i), DataType::Float(j)) => i.unwrap() as f64 == j.unwrap(),
-            (DataType::Float(i), DataType::Integer(j)) => i.unwrap() == j.unwrap() as f64,
-            (DataType::Float(i), DataType::Float(j)) => i.unwrap() == j.unwrap(),
-            (DataType::Boolean(i), DataType::Boolean(j)) => i.unwrap() == j.unwrap(),
-            (DataType::Character(i), DataType::Character(j)) => i.unwrap() == j.unwrap(),
-            (DataType::String(i), DataType::String(j)) => i.unwrap() == j.unwrap(),
+            (Data::Integer(_), Data::Integer(_)) => true,
+            (Data::Float(_), Data::Float(_)) => true,
+            (Data::Boolean(_), Data::Boolean(_)) => true,
+            (Data::Character(_), Data::Character(_)) => true,
+            (Data::String(_), Data::String(_)) => true,
+            (Data::Struct(i, _), Data::Struct(j, _)) => i == j,
             _ => false,
         }
     }
 
-    pub fn not_equal_to(
-        &self,
-        other: &DataType,
-        local_scope: &Scope,
-        global_scope: &Scope,
-    ) -> bool {
-        !self.equal_to(other, local_scope, global_scope)
-    }
-
-    pub fn less_than(&self, other: &DataType, local_scope: &Scope, global_scope: &Scope) -> bool {
-        let lhs = if let Self::Identifier(i) = self {
-            get_from_scope(local_scope, global_scope, i).unwrap()
-        } else {
-            self.clone()
-        };
-
-        let rhs = if let Self::Identifier(i) = other {
-            get_from_scope(local_scope, global_scope, i).unwrap()
-        } else {
-            other.clone()
-        };
-
-        match (lhs, rhs) {
-            (DataType::Integer(i), DataType::Integer(j)) => i.unwrap() < j.unwrap(),
-            (DataType::Integer(i), DataType::Float(j)) => (i.unwrap() as f64) < j.unwrap(),
-            (DataType::Float(i), DataType::Integer(j)) => i.unwrap() < j.unwrap() as f64,
-            (DataType::Float(i), DataType::Float(j)) => i.unwrap() < j.unwrap(),
-            (DataType::Character(i), DataType::Character(j)) => i.unwrap() < j.unwrap(),
-            (DataType::String(i), DataType::String(j)) => i.unwrap() < j.unwrap(),
+    pub fn equal_to(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Data::Integer(i), Data::Integer(j)) => i == j,
+            (Data::Integer(i), Data::Float(j)) => *i as f64 == *j,
+            (Data::Float(i), Data::Integer(j)) => *i == *j as f64,
+            (Data::Float(i), Data::Float(j)) => i == j,
+            (Data::Boolean(i), Data::Boolean(j)) => i == j,
+            (Data::Character(i), Data::Character(j)) => i == j,
+            (Data::String(i), Data::String(j)) => i == j,
+            (Data::Struct(i, j), Data::Struct(k, l)) => i == k && equal_fields(j, l),
             _ => false,
         }
     }
 
-    pub fn less_than_equal_to(
-        &self,
-        other: &DataType,
-        local_scope: &Scope,
-        global_scope: &Scope,
-    ) -> bool {
-        self.less_than(other, local_scope, global_scope)
-            || self.equal_to(other, local_scope, global_scope)
+    pub fn not_equal_to(&self, other: &Self) -> bool {
+        !self.equal_to(other)
     }
 
-    pub fn greater_than(
-        &self,
-        other: &DataType,
-        local_scope: &Scope,
-        global_scope: &Scope,
-    ) -> bool {
-        !self.less_than_equal_to(other, local_scope, global_scope)
-    }
-
-    pub fn greater_than_equal_to(
-        &self,
-        other: &DataType,
-        local_scope: &Scope,
-        global_scope: &Scope,
-    ) -> bool {
-        !self.less_than(other, local_scope, global_scope)
-    }
-
-    pub fn add(&self, other: &DataType, local_scope: &Scope, global_scope: &Scope) -> Self {
-        let lhs = if let Self::Identifier(i) = self {
-            get_from_scope(local_scope, global_scope, i).unwrap()
-        } else {
-            self.clone()
-        };
-
-        let rhs = if let Self::Identifier(i) = other {
-            get_from_scope(local_scope, global_scope, i).unwrap()
-        } else {
-            other.clone()
-        };
-
-        match (lhs, rhs) {
-            (DataType::Integer(i), DataType::Integer(j)) => {
-                DataType::Integer(Some(i.unwrap() + j.unwrap()))
-            }
-            (DataType::Integer(i), DataType::Float(j)) => {
-                DataType::Float(Some(i.unwrap() as f64 + j.unwrap()))
-            }
-            (DataType::Float(i), DataType::Integer(j)) => {
-                DataType::Float(Some(i.unwrap() + j.unwrap() as f64))
-            }
-            (DataType::Float(i), DataType::Float(j)) => {
-                DataType::Float(Some(i.unwrap() + j.unwrap()))
-            }
-            (DataType::String(i), DataType::String(j)) => {
-                DataType::String(Some(i.unwrap() + j.unwrap().as_str()))
-            }
-            _ => panic!(),
+    pub fn less_than(&self, other: &Self) -> Option<bool> {
+        match (self, other) {
+            (Data::Integer(i), Data::Integer(j)) => Some(i < j),
+            (Data::Integer(i), Data::Float(j)) => Some((*i as f64) < *j),
+            (Data::Float(i), Data::Integer(j)) => Some(*i < *j as f64),
+            (Data::Float(i), Data::Float(j)) => Some(i < j),
+            (Data::Boolean(i), Data::Boolean(j)) => Some(i < j),
+            (Data::Character(i), Data::Character(j)) => Some(i < j),
+            (Data::String(i), Data::String(j)) => Some(i < j),
+            _ => None,
         }
     }
 
-    pub fn subtract(&self, other: &DataType, local_scope: &Scope, global_scope: &Scope) -> Self {
-        let lhs = if let Self::Identifier(i) = self {
-            get_from_scope(local_scope, global_scope, i).unwrap()
-        } else {
-            self.clone()
-        };
-
-        let rhs = if let Self::Identifier(i) = other {
-            get_from_scope(local_scope, global_scope, i).unwrap()
-        } else {
-            other.clone()
-        };
-
-        match (lhs, rhs) {
-            (DataType::Integer(i), DataType::Integer(j)) => {
-                DataType::Integer(Some(i.unwrap() - j.unwrap()))
-            }
-            (DataType::Integer(i), DataType::Float(j)) => {
-                DataType::Float(Some(i.unwrap() as f64 - j.unwrap()))
-            }
-            (DataType::Float(i), DataType::Integer(j)) => {
-                DataType::Float(Some(i.unwrap() - j.unwrap() as f64))
-            }
-            (DataType::Float(i), DataType::Float(j)) => {
-                DataType::Float(Some(i.unwrap() - j.unwrap()))
-            }
-            _ => panic!(),
+    pub fn less_than_equal_to(&self, other: &Self) -> Option<bool> {
+        match (self, other) {
+            (Data::Integer(i), Data::Integer(j)) => Some(i <= j),
+            (Data::Integer(i), Data::Float(j)) => Some((*i as f64) <= *j),
+            (Data::Float(i), Data::Integer(j)) => Some(*i <= *j as f64),
+            (Data::Float(i), Data::Float(j)) => Some(i <= j),
+            (Data::Boolean(i), Data::Boolean(j)) => Some(i <= j),
+            (Data::Character(i), Data::Character(j)) => Some(i <= j),
+            (Data::String(i), Data::String(j)) => Some(i <= j),
+            _ => None,
         }
     }
 
-    pub fn multiply(&self, other: &DataType, local_scope: &Scope, global_scope: &Scope) -> Self {
-        let lhs = if let Self::Identifier(i) = self {
-            get_from_scope(local_scope, global_scope, i).unwrap()
-        } else {
-            self.clone()
-        };
-
-        let rhs = if let Self::Identifier(i) = other {
-            get_from_scope(local_scope, global_scope, i).unwrap()
-        } else {
-            other.clone()
-        };
-
-        match (lhs, rhs) {
-            (DataType::Integer(i), DataType::Integer(j)) => {
-                DataType::Integer(Some(i.unwrap() * j.unwrap()))
-            }
-            (DataType::Integer(i), DataType::Float(j)) => {
-                DataType::Float(Some(i.unwrap() as f64 * j.unwrap()))
-            }
-            (DataType::Float(i), DataType::Integer(j)) => {
-                DataType::Float(Some(i.unwrap() * j.unwrap() as f64))
-            }
-            (DataType::Float(i), DataType::Float(j)) => {
-                DataType::Float(Some(i.unwrap() * j.unwrap()))
-            }
-            _ => panic!(),
+    pub fn greater_than(&self, other: &Self) -> Option<bool> {
+        match (self, other) {
+            (Data::Integer(i), Data::Integer(j)) => Some(i > j),
+            (Data::Integer(i), Data::Float(j)) => Some((*i as f64) > *j),
+            (Data::Float(i), Data::Integer(j)) => Some(*i > *j as f64),
+            (Data::Float(i), Data::Float(j)) => Some(i > j),
+            (Data::Boolean(i), Data::Boolean(j)) => Some(i > j),
+            (Data::Character(i), Data::Character(j)) => Some(i > j),
+            (Data::String(i), Data::String(j)) => Some(i > j),
+            _ => None,
         }
     }
 
-    pub fn divide(&self, other: &DataType, local_scope: &Scope, global_scope: &Scope) -> Self {
-        let lhs = if let Self::Identifier(i) = self {
-            get_from_scope(local_scope, global_scope, i).unwrap()
-        } else {
-            self.clone()
-        };
-
-        let rhs = if let Self::Identifier(i) = other {
-            get_from_scope(local_scope, global_scope, i).unwrap()
-        } else {
-            other.clone()
-        };
-
-        match (lhs, rhs) {
-            (DataType::Integer(i), DataType::Integer(j)) => {
-                DataType::Integer(Some(i.unwrap() / j.unwrap()))
-            }
-            (DataType::Integer(i), DataType::Float(j)) => {
-                DataType::Float(Some(i.unwrap() as f64 / j.unwrap()))
-            }
-            (DataType::Float(i), DataType::Integer(j)) => {
-                DataType::Float(Some(i.unwrap() / j.unwrap() as f64))
-            }
-            (DataType::Float(i), DataType::Float(j)) => {
-                DataType::Float(Some(i.unwrap() / j.unwrap()))
-            }
-            _ => panic!(),
+    pub fn greater_than_equal_to(&self, other: &Self) -> Option<bool> {
+        match (self, other) {
+            (Data::Integer(i), Data::Integer(j)) => Some(i >= j),
+            (Data::Integer(i), Data::Float(j)) => Some((*i as f64) >= *j),
+            (Data::Float(i), Data::Integer(j)) => Some(*i >= *j as f64),
+            (Data::Float(i), Data::Float(j)) => Some(i >= j),
+            (Data::Boolean(i), Data::Boolean(j)) => Some(i >= j),
+            (Data::Character(i), Data::Character(j)) => Some(i >= j),
+            (Data::String(i), Data::String(j)) => Some(i >= j),
+            _ => None,
         }
     }
 
-    pub fn remainder(&self, other: &DataType, local_scope: &Scope, global_scope: &Scope) -> Self {
-        let lhs = if let Self::Identifier(i) = self {
-            get_from_scope(local_scope, global_scope, i).unwrap()
-        } else {
-            self.clone()
-        };
-
-        let rhs = if let Self::Identifier(i) = other {
-            get_from_scope(local_scope, global_scope, i).unwrap()
-        } else {
-            other.clone()
-        };
-
-        match (lhs, rhs) {
-            (DataType::Integer(i), DataType::Integer(j)) => {
-                DataType::Integer(Some(i.unwrap() % j.unwrap()))
-            }
-            _ => panic!(),
+    pub fn add(&self, other: &Self) -> Option<Self> {
+        match (self, other) {
+            (Data::Integer(i), Data::Integer(j)) => Some(Data::Integer(i + j)),
+            (Data::Integer(i), Data::Float(j)) => Some(Data::Float(*i as f64 + j)),
+            (Data::Float(i), Data::Integer(j)) => Some(Data::Float(i + *j as f64)),
+            (Data::Float(i), Data::Float(j)) => Some(Data::Float(i + j)),
+            (Data::String(i), Data::String(j)) => Some(Data::String(format!("{}{}", i, j))),
+            _ => None,
         }
     }
 
-    pub fn printable_string(&self, local_scope: &Scope, global_scope: &Scope) -> String {
-        let str;
+    pub fn subtract(&self, other: &Self) -> Option<Self> {
+        match (self, other) {
+            (Data::Integer(i), Data::Integer(j)) => Some(Data::Integer(i - j)),
+            (Data::Integer(i), Data::Float(j)) => Some(Data::Float(*i as f64 - j)),
+            (Data::Float(i), Data::Integer(j)) => Some(Data::Float(i - *j as f64)),
+            (Data::Float(i), Data::Float(j)) => Some(Data::Float(i - j)),
+            _ => None,
+        }
+    }
 
+    pub fn multiply(&self, other: &Self) -> Option<Self> {
+        match (self, other) {
+            (Data::Integer(i), Data::Integer(j)) => Some(Data::Integer(i * j)),
+            (Data::Integer(i), Data::Float(j)) => Some(Data::Float(*i as f64 * j)),
+            (Data::Float(i), Data::Integer(j)) => Some(Data::Float(i * *j as f64)),
+            (Data::Float(i), Data::Float(j)) => Some(Data::Float(i * j)),
+            _ => None,
+        }
+    }
+
+    pub fn divide(&self, other: &Self) -> Option<Self> {
+        match (self, other) {
+            (Data::Integer(i), Data::Integer(j)) => Some(Data::Integer(i / j)),
+            (Data::Integer(i), Data::Float(j)) => Some(Data::Float(*i as f64 / j)),
+            (Data::Float(i), Data::Integer(j)) => Some(Data::Float(i / *j as f64)),
+            (Data::Float(i), Data::Float(j)) => Some(Data::Float(i / j)),
+            _ => None,
+        }
+    }
+
+    pub fn remainder(&self, other: &Self) -> Option<Self> {
+        match (self, other) {
+            (Data::Integer(i), Data::Integer(j)) => Some(Data::Integer(i % j)),
+            _ => None,
+        }
+    }
+
+    pub fn printable_string(&self) -> String {
         match self {
-            DataType::Integer(Some(i)) => str = i.to_string(),
-            DataType::Float(Some(i)) => str = i.to_string(),
-            DataType::Boolean(Some(i)) => str = i.to_string(),
-            DataType::Character(Some(i)) => str = i.to_string(),
-            DataType::String(Some(i)) => str = i.clone(),
-            DataType::Identifier(i) => {
-                str = get_from_scope(local_scope, global_scope, i)
-                    .unwrap()
-                    .printable_string(local_scope, global_scope)
-            }
-            _ => panic!(),
+            Data::Integer(i) => i.to_string(),
+            Data::Float(i) => i.to_string(),
+            Data::Boolean(i) => i.to_string(),
+            Data::Character(i) => i.to_string(),
+            Data::String(i) => i.clone(),
+            Data::Struct(_, _) => panic!(),
         }
-
-        str
     }
 }
 
-pub fn get_from_scope(
-    local_scope: &Scope,
-    global_scope: &Scope,
-    variable: &str,
-) -> Option<DataType> {
-    if local_scope.contains_key(variable) {
-        return Some(local_scope.get(variable).unwrap().clone());
+fn equal_fields(f1: &Members, f2: &Members) -> bool {
+    for (k, v) in f1.iter() {
+        if f2.get(k).unwrap().not_equal_to(v) {
+            return false;
+        }
     }
 
-    if global_scope.contains_key(variable) {
-        return Some(global_scope.get(variable).unwrap().clone());
-    }
-
-    None
-}
-
-pub fn get_from_scope_mut<'a>(
-    local_scope: &'a mut Scope,
-    global_scope: &'a mut Scope,
-    variable: &str,
-) -> Option<&'a mut DataType> {
-    if local_scope.contains_key(variable) {
-        return Some(local_scope.get_mut(variable).unwrap());
-    }
-
-    if global_scope.contains_key(variable) {
-        return Some(global_scope.get_mut(variable).unwrap());
-    }
-
-    None
+    true
 }

@@ -1,13 +1,14 @@
 use super::Instruction;
-use crate::{data::DataType, tokeniser::Token};
+use crate::tokeniser::Token;
 
 pub fn goto(arguments: Vec<Token>) -> Result<Instruction, ()> {
     if arguments.len() != 1 {
         return Err(());
     }
 
-    let block_name = if let Token::Identifier(i) = &arguments[0] {
-        i.clone()
+    let mut iter = arguments.into_iter();
+    let block_name = if let Token::Identifier(i) = iter.next().unwrap() {
+        i
     } else {
         return Err(());
     };
@@ -20,13 +21,13 @@ pub fn goto_if(arguments: Vec<Token>) -> Result<Instruction, ()> {
         return Err(());
     }
 
-    let block_name = if let Token::Identifier(i) = &arguments[0] {
-        i.clone()
+    let mut iter = arguments.into_iter();
+    let block_name = if let Token::Identifier(i) = iter.next().unwrap() {
+        i
     } else {
         return Err(());
     };
-
-    let condition = DataType::token_as_type(&arguments[1]);
+    let condition = iter.next().unwrap().into();
 
     Ok(Instruction::GotoIf(block_name, condition))
 }
@@ -44,7 +45,8 @@ pub fn go_back_if(arguments: Vec<Token>) -> Result<Instruction, ()> {
         return Err(());
     }
 
-    let condition = DataType::token_as_type(&arguments[0]);
+    let mut iter = arguments.into_iter();
+    let condition = iter.next().unwrap().into();
 
     Ok(Instruction::GoBackIf(condition))
 }
@@ -54,12 +56,12 @@ pub fn skip(arguments: Vec<Token>) -> Result<Instruction, ()> {
         return Err(());
     }
 
-    let skip_instructions = if let Token::Integer(i) = &arguments[0] {
+    let skip_instructions = if let Token::Integer(i) = arguments.into_iter().next().unwrap() {
         if i.is_negative() {
             return Err(());
         }
 
-        *i as usize
+        i as usize
     } else {
         return Err(());
     };

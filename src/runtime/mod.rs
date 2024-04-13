@@ -1,4 +1,7 @@
-use crate::{data::DataType, parser::Instruction};
+use crate::{
+    data::{Data, Type},
+    parser::Instruction,
+};
 use std::{collections::HashMap, io::Write};
 
 mod arithmetic;
@@ -7,12 +10,28 @@ mod function;
 mod jump_statement;
 mod variable;
 
-pub type Scope = HashMap<String, DataType>;
+#[derive(Clone)]
+pub enum StoredValue {
+    Null(Type),
+    Value(Data),
+}
+
+impl StoredValue {
+    pub fn get_value(&self) -> &Data {
+        if let Self::Value(i) = self {
+            i
+        } else {
+            panic!()
+        }
+    }
+}
+
+pub type Scope = HashMap<String, StoredValue>;
 pub type InbuiltFunction = HashMap<
     String, // function name
     (
-        Vec<(String, DataType)>, // arguments expected
-        Box<dyn Fn(&mut Scope, &mut Scope, Option<Scope>) -> Option<Vec<DataType>>>, // local scope, global scope, arguments
+        Vec<(String, Type)>,                             // arguments expected
+        Box<dyn Fn(Option<Scope>) -> Option<Vec<Data>>>, // local scope, global scope, arguments
     ),
 >;
 
@@ -21,7 +40,7 @@ enum StatementReturn {
     End,
     GoBack,
     Skip(usize),
-    Return(Vec<DataType>),
+    Return(Vec<Data>),
 }
 
 pub fn execute(instructions: Vec<Instruction>) {
@@ -42,31 +61,16 @@ fn inbuilts() -> InbuiltFunction {
     let mut inbuilt_functions = InbuiltFunction::new();
 
     inbuilt_functions.insert(
-        String::from("math_sin"),
-        (
-            vec![(String::from("x"), DataType::Float(None))],
-            Box::new(|_, _, arguments| {
-                if let Some(DataType::Float(Some(i))) = arguments.unwrap().get("x") {
-                    Some(vec![DataType::Float(Some(i.sin()))])
-                } else {
-                    panic!()
-                }
-            }),
-        ),
-    );
-
-    inbuilt_functions.insert(
         String::from("std_print"),
         (
-            vec![(String::from("value"), DataType::Identifier(String::new()))],
-            Box::new(|local_scope, global_scope, arguments| {
+            vec![(String::from("value"), Type::Any)],
+            Box::new(|arguments| {
                 print!(
                     "{}",
-                    arguments
-                        .unwrap()
-                        .get("value")
-                        .unwrap()
-                        .printable_string(&local_scope, &global_scope)
+                    match arguments.unwrap().get("value").unwrap() {
+                        StoredValue::Null(_) => panic!(),
+                        StoredValue::Value(i) => i.printable_string(),
+                    }
                 );
                 std::io::stdout().flush().unwrap();
 
@@ -78,15 +82,14 @@ fn inbuilts() -> InbuiltFunction {
     inbuilt_functions.insert(
         String::from("std_println"),
         (
-            vec![(String::from("value"), DataType::Identifier(String::new()))],
-            Box::new(|local_scope, global_scope, arguments| {
+            vec![(String::from("value"), Type::Any)],
+            Box::new(|arguments| {
                 println!(
                     "{}",
-                    arguments
-                        .unwrap()
-                        .get("value")
-                        .unwrap()
-                        .printable_string(&local_scope, &global_scope)
+                    match arguments.unwrap().get("value").unwrap() {
+                        StoredValue::Null(_) => panic!(),
+                        StoredValue::Value(i) => i.printable_string(),
+                    }
                 );
                 std::io::stdout().flush().unwrap();
 
@@ -96,4 +99,28 @@ fn inbuilts() -> InbuiltFunction {
     );
 
     inbuilt_functions
+}
+
+fn get<'a>(varible: &'a str, local_scope: &'a Scope, global_scope: &'a Scope) -> &'a StoredValue {
+    if let Some(i) = local_scope.get(varible) {
+        i
+    } else if let Some(i) = global_scope.get(varible) {
+        i
+    } else {
+        panic!()
+    }
+}
+
+fn get_mut<'a>(
+    varible: &'a str,
+    local_scope: &'a mut Scope,
+    global_scope: &'a mut Scope,
+) -> &'a mut StoredValue {
+    if let Some(i) = local_scope.get_mut(varible) {
+        i
+    } else if let Some(i) = global_scope.get_mut(varible) {
+        i
+    } else {
+        panic!()
+    }
 }

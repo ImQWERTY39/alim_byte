@@ -1,27 +1,34 @@
-use super::Scope;
-use crate::{
-    data::{get_from_scope_mut, DataType},
-    parser::ArithmeticOperator,
-};
+use super::{get, get_mut, Scope, StoredValue};
+use crate::parser::{ArithmeticOperator, ValueKind};
 
 pub fn operation(
-    lhs: &DataType,
-    rhs: &DataType,
-    assign_to: &DataType,
+    lvalue: &ValueKind,
+    rvalue: &ValueKind,
+    avalue: &ValueKind,
     operator: &ArithmeticOperator,
     local_scope: &mut Scope,
     global_scope: &mut Scope,
 ) {
-    let result = match operator {
-        ArithmeticOperator::Add => lhs.add(rhs, local_scope, global_scope),
-        ArithmeticOperator::Subtract => lhs.subtract(rhs, local_scope, global_scope),
-        ArithmeticOperator::Muliply => lhs.multiply(rhs, local_scope, global_scope),
-        ArithmeticOperator::Divide => lhs.divide(rhs, local_scope, global_scope),
-        ArithmeticOperator::Remainder => lhs.remainder(rhs, local_scope, global_scope),
+    let lhs = match lvalue {
+        ValueKind::Variable(i) => get(i, local_scope, global_scope).get_value(),
+        ValueKind::Literal(i) => &i,
     };
 
-    if let DataType::Identifier(i) = assign_to {
-        *get_from_scope_mut(local_scope, global_scope, i).unwrap() = result;
+    let rhs = match rvalue {
+        ValueKind::Variable(i) => get(i, local_scope, global_scope).get_value(),
+        ValueKind::Literal(i) => &i,
+    };
+
+    let result = match operator {
+        ArithmeticOperator::Add => lhs.add(rhs),
+        ArithmeticOperator::Subtract => lhs.subtract(rhs),
+        ArithmeticOperator::Muliply => lhs.multiply(rhs),
+        ArithmeticOperator::Divide => lhs.divide(rhs),
+        ArithmeticOperator::Remainder => lhs.remainder(rhs),
+    };
+
+    if let ValueKind::Variable(i) = avalue {
+        *get_mut(i, local_scope, global_scope) = StoredValue::Value(result.unwrap());
     } else {
         panic!()
     }

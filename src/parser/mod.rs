@@ -1,4 +1,4 @@
-use crate::{data::DataType, tokeniser::Token};
+use crate::{data::Data, data::Type, tokeniser::Token};
 
 mod arithmetic;
 mod comparision;
@@ -6,25 +6,42 @@ mod function;
 mod jump_statement;
 mod variable;
 
-#[derive(Debug)]
+#[derive(Clone)]
+pub enum ValueKind {
+    Variable(String),
+    Literal(Data),
+}
+
+impl From<Token> for ValueKind {
+    fn from(value: Token) -> Self {
+        match value {
+            Token::Identifier(i) => ValueKind::Variable(i),
+            Token::Integer(i) => ValueKind::Literal(Data::Integer(i)),
+            Token::Boolean(i) => ValueKind::Literal(Data::Boolean(i)),
+            Token::Float(i) => ValueKind::Literal(Data::Float(i)),
+            Token::Character(i) => ValueKind::Literal(Data::Character(i)),
+            Token::String(i) => ValueKind::Literal(Data::String(i)),
+        }
+    }
+}
+
 pub enum Instruction {
-    Function(String, Vec<(String, DataType)>),
-    Block(String),
-    CreateVariable(String, DataType),
-    SetVariable(String, DataType),
-    Compare(ComparisionType, DataType, DataType, DataType),
-    Goto(String),
-    GotoIf(String, DataType),
-    GoBack,
-    GoBackIf(DataType),
-    Skip(usize),
-    Arithmetic(ArithmeticOperator, DataType, DataType, DataType),
-    Call(String, Vec<DataType>),
-    Return(Vec<DataType>),
+    Function(String, Vec<(String, Type)>), // name, (param_name, type)
+    Block(String),                         // name
+    CreateVariable(String, Type),          // name type
+    SetVariable(String, ValueKind),        // name data
+    Compare(ComparisionType, ValueKind, ValueKind, ValueKind), // operator lhs rhs set
+    Goto(String),                          // block_name
+    GotoIf(String, ValueKind),             // block_name condition
+    GoBack,                                // go_back
+    GoBackIf(ValueKind),                   // go_back condition
+    Skip(usize),                           // number_of_instructions
+    Arithmetic(ArithmeticOperator, ValueKind, ValueKind, ValueKind), // operator lhs rhs
+    Call(String, Vec<ValueKind>),          // function_name arguments
+    Return(Vec<ValueKind>),                // return_values
     End,
 }
 
-#[derive(Debug)]
 pub enum ComparisionType {
     EqualTo,
     NotEqualTo,
@@ -34,7 +51,6 @@ pub enum ComparisionType {
     GreaterThanEqualTo,
 }
 
-#[derive(Debug)]
 pub enum ArithmeticOperator {
     Add,
     Subtract,

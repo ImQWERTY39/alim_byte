@@ -1,12 +1,9 @@
-use std::collections::HashMap;
-
+use super::{arithmetic, comparision, get, variable, InbuiltFunction, Scope};
 use crate::{
-    data::{get_from_scope, get_from_scope_mut, DataType},
-    parser::Instruction,
+    data::Data,
+    parser::{Instruction, ValueKind},
     runtime::StatementReturn,
 };
-
-use super::{arithmetic, comparision, variable, InbuiltFunction, Scope};
 
 pub fn run_function(
     instructions: &[Instruction],
@@ -14,7 +11,7 @@ pub fn run_function(
     arguments: Option<Scope>,
     global_scope: &mut Scope,
     inbuilt: &InbuiltFunction,
-) -> Option<Vec<DataType>> {
+) -> Option<Vec<Data>> {
     let mut local_scope = match arguments {
         Some(i) => i,
         None => Scope::new(),
@@ -81,14 +78,11 @@ fn execute_line(
 
     match instruction {
         Instruction::CreateVariable(name, type_) => {
-            variable::create_variable(local_scope, name.to_string(), type_.to_owned())
+            variable::create_variable(local_scope, name.to_string(), type_.clone())
         }
-        Instruction::SetVariable(name, value) => variable::set_variable(
-            local_scope,
-            global_scope,
-            name.to_string(),
-            value.to_owned(),
-        ),
+        Instruction::SetVariable(variable, set_to) => {
+            variable::set_variable(local_scope, global_scope, variable, set_to.clone())
+        }
         Instruction::Compare(comparision_type, lhs, rhs, assign_to) => comparision::compare(
             comparision_type,
             lhs,
@@ -97,22 +91,35 @@ fn execute_line(
             local_scope,
             global_scope,
         ),
-        Instruction::Goto(block_name) => {
-            let block_index = get_block_index(instructions, block_name).unwrap();
-            run_block(
-                instructions,
-                block_index,
-                local_scope,
-                global_scope,
-                inbuilt,
-            );
-        }
-        Instruction::GotoIf(block_name, condition) => {
-            if is_true(condition, local_scope, global_scope) {
-                let block_index = get_block_index(instructions, block_name).unwrap();
+        Instruction::Goto(i) => run_block(
+            instructions,
+            get_block_index(instructions, i).unwrap(),
+            local_scope,
+            global_scope,
+            inbuilt,
+        ),
+        Instruction::GotoIf(block, condition) => {
+            let should_go = match condition {
+                ValueKind::Variable(i) => {
+                    if let Data::Boolean(j) = get(i, local_scope, global_scope).get_value() {
+                        j
+                    } else {
+                        panic!()
+                    }
+                }
+                ValueKind::Literal(i) => {
+                    if let Data::Boolean(j) = i {
+                        j
+                    } else {
+                        panic!()
+                    }
+                }
+            };
+
+            if *should_go {
                 run_block(
                     instructions,
-                    block_index,
+                    get_block_index(instructions, block).unwrap(),
                     local_scope,
                     global_scope,
                     inbuilt,
@@ -121,7 +128,24 @@ fn execute_line(
         }
         Instruction::GoBack => return StatementReturn::GoBack,
         Instruction::GoBackIf(condition) => {
-            if is_true(condition, local_scope, global_scope) {
+            let should_go = match condition {
+                ValueKind::Variable(i) => {
+                    if let Data::Boolean(j) = get(i, local_scope, global_scope).get_value() {
+                        j
+                    } else {
+                        panic!()
+                    }
+                }
+                ValueKind::Literal(i) => {
+                    if let Data::Boolean(j) = i {
+                        j
+                    } else {
+                        panic!()
+                    }
+                }
+            };
+
+            if *should_go {
                 return StatementReturn::GoBack;
             }
         }
@@ -129,170 +153,20 @@ fn execute_line(
         Instruction::Arithmetic(operator, lhs, rhs, assign_to) => {
             arithmetic::operation(lhs, rhs, assign_to, operator, local_scope, global_scope)
         }
-        Instruction::Call(function_name, arguments) => {
-            if let Some(idx) = get_function_index(instructions, function_name) {
-                let params = if let Instruction::Function(_, params) = &instructions[idx] {
-                    params
-                } else {
-                    unreachable!()
-                };
-
-                if arguments.len() < params.len() {
-                    panic!()
-                }
-
-                let function_index = get_function_index(instructions, function_name).unwrap();
-                let args = if !params.is_empty() {
-                    let mut args = HashMap::new();
-
-                    for ((name, type_expected), variable_name) in params.iter().zip(arguments) {
-                        let variable = if let DataType::Identifier(i) = variable_name {
-                            get_from_scope(local_scope, global_scope, i).unwrap()
-                        } else {
-                            variable_name.clone()
-                        };
-
-                        let type_ = if let DataType::Identifier(i) = type_expected {
-                            DataType::string_as_type(i)
-                        } else {
-                            type_expected.clone()
-                        };
-
-                        if !type_.same_type(&variable) {
-                            panic!()
-                        }
-
-                        args.insert(name.clone(), variable.clone());
-                    }
-
-                    Some(args)
-                } else {
-                    None
-                };
-
-                if let Some(values) =
-                    run_function(instructions, function_index, args, global_scope, inbuilt)
-                {
-                    let store_ret_vals_len = arguments.len() - params.len();
-
-                    if store_ret_vals_len != values.len() {
-                        panic!()
-                    }
-
-                    set_return_values(
-                        local_scope,
-                        global_scope,
-                        &arguments[store_ret_vals_len + 1..],
-                        &values,
-                    );
-                }
-            } else if let Some((parametres, function)) = inbuilt.get(function_name) {
-                if arguments.len() < parametres.len() {
-                    panic!()
-                }
-
-                let args = if !parametres.is_empty() {
-                    let mut args = HashMap::new();
-
-                    for ((name, type_expected), variable_name) in parametres.iter().zip(arguments) {
-                        let variable = if let DataType::Identifier(i) = variable_name {
-                            get_from_scope(local_scope, global_scope, i).unwrap()
-                        } else {
-                            variable_name.clone()
-                        };
-
-                        let type_ = if let DataType::Identifier(i) = type_expected {
-                            DataType::string_as_type(i)
-                        } else {
-                            type_expected.clone()
-                        };
-
-                        if !type_.same_type(&variable) {
-                            panic!()
-                        }
-
-                        args.insert(name.clone(), variable.clone());
-                    }
-
-                    Some(args)
-                } else {
-                    None
-                };
-
-                if let Some(values) = function(local_scope, global_scope, args) {
-                    let store_ret_vals_len = arguments.len() - parametres.len();
-                    if store_ret_vals_len != values.len() {
-                        panic!()
-                    }
-
-                    set_return_values(
-                        local_scope,
-                        global_scope,
-                        &arguments[store_ret_vals_len..],
-                        &values,
-                    );
-                }
-            } else {
-                panic!("Function not found: {}", function_name)
-            }
-        }
-        Instruction::Return(i) => {
-            return StatementReturn::Return(
-                i.iter()
-                    .map(|x| {
-                        get_from_scope(
-                            local_scope,
-                            global_scope,
-                            if let DataType::Identifier(i) = x {
-                                i
-                            } else {
-                                panic!()
-                            },
-                        )
-                        .unwrap()
-                    })
-                    .collect(),
-            )
-        }
+        Instruction::Call(_, _) => unimplemented!(),
+        Instruction::Return(_) => unimplemented!(),
         Instruction::End => return StatementReturn::End,
-        _ => (),
-    };
+        _ => unreachable!(),
+    }
 
     StatementReturn::None
 }
 
-fn set_return_values(
-    local_scope: &mut Scope,
-    global_scope: &mut Scope,
-    variables: &[DataType],
-    values: &[DataType],
-) {
-    for (value, vars) in values.iter().zip(variables) {
-        if let DataType::Identifier(i) = vars {
-            *get_from_scope_mut(local_scope, global_scope, i).unwrap() = value.clone();
-        }
-    }
-}
-
-fn is_true(condition: &DataType, local_scope: &mut Scope, global_scope: &mut Scope) -> bool {
-    if let DataType::Boolean(Some(true)) = condition {
-        return true;
-    }
-
-    if let DataType::Identifier(i) = condition {
-        if let DataType::Boolean(Some(i)) = get_from_scope(local_scope, global_scope, i).unwrap() {
-            return i;
-        }
-    }
-
-    panic!()
-}
-
 pub fn get_function_index(instructions: &[Instruction], function_name: &str) -> Option<usize> {
-    for (index, instruction) in instructions.iter().enumerate() {
-        if let Instruction::Function(name, _) = instruction {
-            if name == function_name {
-                return Some(index);
+    for (idx, val) in instructions.iter().enumerate() {
+        if let Instruction::Function(i, _) = val {
+            if i == function_name {
+                return Some(idx);
             }
         }
     }
@@ -300,11 +174,11 @@ pub fn get_function_index(instructions: &[Instruction], function_name: &str) -> 
     None
 }
 
-fn get_block_index(instructions: &[Instruction], block_name: &str) -> Option<usize> {
-    for (index, instruction) in instructions.iter().enumerate() {
-        if let Instruction::Block(name) = instruction {
-            if name == block_name {
-                return Some(index);
+pub fn get_block_index(instructions: &[Instruction], block_name: &str) -> Option<usize> {
+    for (idx, val) in instructions.iter().enumerate() {
+        if let Instruction::Block(i) = val {
+            if i == block_name {
+                return Some(idx);
             }
         }
     }

@@ -1,39 +1,41 @@
 use super::Instruction;
-use crate::{data::DataType, tokeniser::Token};
+use crate::{data::Type, tokeniser::Token};
 
 pub fn init_function(arguments: Vec<Token>) -> Result<Instruction, ()> {
     if arguments.len() % 2 == 0 {
         return Err(());
     }
 
-    let name = if let Token::Identifier(i) = &arguments[0] {
-        i.clone()
+    let length = arguments.len();
+    let mut iter = arguments.into_iter();
+    let name = if let Token::Identifier(i) = iter.next().unwrap() {
+        i
     } else {
         return Err(());
     };
 
-    if arguments.len() == 1 {
+    if length == 1 {
         Ok(Instruction::Function(name, Vec::new()))
     } else {
         Ok(Instruction::Function(
             name,
-            parse_parametres(&arguments[1..])?,
+            parse_parametres(iter.collect())?,
         ))
     }
 }
 
-fn parse_parametres(arguments: &[Token]) -> Result<Vec<(String, DataType)>, ()> {
+fn parse_parametres(arguments: Vec<Token>) -> Result<Vec<(String, Type)>, ()> {
     let mut parametres = Vec::with_capacity(arguments.len() / 2);
-    let mut param_list = arguments.iter();
+    let mut param_list = arguments.into_iter();
 
-    while let Some(type_token) = param_list.next() {
+    while let Some(Token::Identifier(type_token)) = param_list.next() {
         let name = if let Token::Identifier(i) = param_list.next().ok_or(())? {
-            i.clone()
+            i
         } else {
             return Err(());
         };
 
-        parametres.push((name, DataType::token_as_type(type_token)));
+        parametres.push((name, type_token.into()));
     }
 
     Ok(parametres)
@@ -44,8 +46,8 @@ pub fn init_block(arguments: Vec<Token>) -> Result<Instruction, ()> {
         return Err(());
     }
 
-    let name = if let Token::Identifier(i) = &arguments[0] {
-        i.clone()
+    let name = if let Token::Identifier(i) = arguments.into_iter().next().unwrap() {
+        i
     } else {
         return Err(());
     };
@@ -67,13 +69,13 @@ pub fn return_value(arguments: Vec<Token>) -> Result<Instruction, ()> {
     }
 
     Ok(Instruction::Return(
-        arguments.iter().map(DataType::token_as_type).collect(),
+        arguments.into_iter().map(Into::into).collect(),
     ))
 }
 
 pub fn call(function_name: String, arguments: Vec<Token>) -> Result<Instruction, ()> {
     Ok(Instruction::Call(
         function_name,
-        arguments.iter().map(DataType::token_as_type).collect(),
+        arguments.into_iter().map(Into::into).collect(),
     ))
 }

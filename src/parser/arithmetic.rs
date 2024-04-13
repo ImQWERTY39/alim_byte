@@ -1,14 +1,15 @@
 use super::{ArithmeticOperator, Instruction};
-use crate::{data::DataType, tokeniser::Token};
+use crate::tokeniser::Token;
 
 pub fn operator(arguments: Vec<Token>, operator: ArithmeticOperator) -> Result<Instruction, ()> {
     if arguments.len() != 3 {
         return Err(());
     }
 
-    let lhs = DataType::token_as_type(&arguments[0]);
-    let rhs = DataType::token_as_type(&arguments[1]);
-    let assign_to = DataType::token_as_type(&arguments[2]);
+    let mut iter = arguments.into_iter();
+    let lhs = iter.next().unwrap().into();
+    let rhs = iter.next().unwrap().into();
+    let assign_to = iter.next().unwrap().into();
 
     Ok(Instruction::Arithmetic(operator, lhs, rhs, assign_to))
 }

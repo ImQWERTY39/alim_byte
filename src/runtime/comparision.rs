@@ -1,32 +1,38 @@
+use super::{get, get_mut, Scope, StoredValue};
 use crate::{
-    data::{get_from_scope_mut, DataType},
-    parser::ComparisionType,
+    data::Data,
+    parser::{ComparisionType, ValueKind},
 };
-
-use super::Scope;
 
 pub fn compare(
     comparision_type: &ComparisionType,
-    lhs: &DataType,
-    rhs: &DataType,
-    assign_to: &DataType,
+    lvalue: &ValueKind,
+    rvalue: &ValueKind,
+    avalue: &ValueKind,
     local_scope: &mut Scope,
     global_scope: &mut Scope,
 ) {
-    let result = match comparision_type {
-        ComparisionType::EqualTo => lhs.equal_to(rhs, local_scope, global_scope),
-        ComparisionType::NotEqualTo => lhs.not_equal_to(rhs, local_scope, global_scope),
-        ComparisionType::LessThan => lhs.less_than(rhs, local_scope, global_scope),
-        ComparisionType::LessThanEqualTo => lhs.less_than_equal_to(rhs, local_scope, global_scope),
-        ComparisionType::GreaterThan => lhs.greater_than(rhs, local_scope, global_scope),
-        ComparisionType::GreaterThanEqualTo => {
-            lhs.greater_than_equal_to(rhs, local_scope, global_scope)
-        }
+    let lhs = match lvalue {
+        ValueKind::Variable(i) => get(i, local_scope, global_scope).get_value(),
+        ValueKind::Literal(i) => &i,
     };
 
-    if let DataType::Identifier(i) = assign_to {
-        *get_from_scope_mut(local_scope, global_scope, i).unwrap() =
-            DataType::Boolean(Some(result));
+    let rhs = match rvalue {
+        ValueKind::Variable(i) => get(i, local_scope, global_scope).get_value(),
+        ValueKind::Literal(i) => &i,
+    };
+
+    let result = match comparision_type {
+        ComparisionType::EqualTo => lhs.equal_to(rhs),
+        ComparisionType::NotEqualTo => lhs.not_equal_to(rhs),
+        ComparisionType::LessThan => lhs.less_than(rhs).unwrap(),
+        ComparisionType::LessThanEqualTo => lhs.less_than_equal_to(rhs).unwrap(),
+        ComparisionType::GreaterThan => lhs.greater_than(rhs).unwrap(),
+        ComparisionType::GreaterThanEqualTo => lhs.greater_than_equal_to(rhs).unwrap(),
+    };
+
+    if let ValueKind::Variable(i) = avalue {
+        *get_mut(i, local_scope, global_scope) = StoredValue::Value(Data::Boolean(result));
     } else {
         panic!()
     }

@@ -13,8 +13,7 @@ END
 BLOCK iter
 
 ADD a 1 a
-std_print a
-LT a 1000000000 b
+LT a 100000000 b
 
 GO_BACK_IF b
 END

@@ -1,24 +1,27 @@
 use super::Instruction;
-use crate::{data::DataType, tokeniser::Token};
+use crate::tokeniser::Token;
 
 pub fn create_variable(arguments: Vec<Token>) -> Result<Instruction, ()> {
     if arguments.len() != 2 {
         return Err(());
     }
 
-    let datatype = if let Token::Identifier(i) = &arguments[0] {
-        DataType::string_as_type(i)
+    let mut iter = arguments.into_iter();
+    let type_ = iter.next().unwrap();
+    let name = iter.next().unwrap();
+
+    let variable_name = if let Token::Identifier(i) = name {
+        i
     } else {
         return Err(());
     };
 
-    let variable_name = if let Token::Identifier(i) = &arguments[1] {
-        i.clone()
-    } else {
-        return Err(());
+    let variable_type = match type_ {
+        Token::Identifier(i) => i.into(),
+        _ => return Err(()),
     };
 
-    Ok(Instruction::CreateVariable(variable_name, datatype))
+    Ok(Instruction::CreateVariable(variable_name, variable_type))
 }
 
 pub fn set_variable(arguments: Vec<Token>) -> Result<Instruction, ()> {
@@ -26,13 +29,14 @@ pub fn set_variable(arguments: Vec<Token>) -> Result<Instruction, ()> {
         return Err(());
     }
 
-    let variable_name = if let Token::Identifier(i) = &arguments[0] {
-        i.clone()
-    } else {
-        return Err(());
+    let mut iter = arguments.into_iter();
+    let name = iter.next().unwrap();
+    let value = iter.next().unwrap();
+
+    let variable_name = match name {
+        Token::Identifier(i) => i,
+        _ => return Err(()),
     };
 
-    let value = DataType::token_as_type(&arguments[1]);
-
-    Ok(Instruction::SetVariable(variable_name, value))
+    Ok(Instruction::SetVariable(variable_name, value.into()))
 }
