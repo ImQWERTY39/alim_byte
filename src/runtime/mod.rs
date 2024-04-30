@@ -1,126 +1,70 @@
-use crate::{
-    data::{Data, Type},
-    parser::Instruction,
-};
-use std::{collections::HashMap, io::Write};
+use crate::data_type::{Data, Type, ValueKind};
 
-mod arithmetic;
-mod comparision;
-mod function;
-mod jump_statement;
-mod variable;
+pub enum Instruction {
+    /* Variable creation, assigning */
+    CreateVar(Box<str>, Type),   // variable name `Box<str>` of type `Type`
+    SetVar(Box<str>, ValueKind), // Variable(Box<str>) = `ValueKind`;
 
-#[derive(Clone)]
-pub enum StoredValue {
-    Null(Type),
-    Value(Data),
-}
+    /* Indexing */
+    GetIndex(ValueKind, usize, Box<str>), // Variable(Box<str>) = {Array|String}(ValueKind)[usize]
+    SetIndex(Box<str>, usize, ValueKind), // Array(Box<str>)[usize] = Variable(ValueKind)
 
-impl StoredValue {
-    pub fn get_value(&self) -> &Data {
-        if let Self::Value(i) = self {
-            i
-        } else {
-            panic!()
-        }
-    }
-}
+    /* Loading and unloading registers */
+    Load(ValueKind),
+    LoadParams(Vec<ValueKind>),
+    Unload(Box<str>),
+    UnloadRet(Vec<Data>),
 
-pub type Scope = HashMap<String, StoredValue>;
-pub type InbuiltFunction = HashMap<
-    String, // function name
-    (
-        Vec<(String, Type)>,                             // arguments expected
-        Box<dyn Fn(Option<Scope>) -> Option<Vec<Data>>>, // local scope, global scope, arguments
-    ),
->;
+    /* Unary and Binary */
+    Relational(RelationalOperator),
+    Arithmetic(ArithmeticOperator),
+    Bitwise(BitwiseOperator),
+    Logical(LogicalOperator),
+    // Everything requires both registers filled, except for LogicalOperator::Not, needs only 1
 
-enum StatementReturn {
-    None,
-    End,
+    /* Jump Statements */
+    Goto(Box<str>),
+    GotoIf(Box<str>), // gets from register
     GoBack,
+    GoBackIf, // gets from register
     Skip(usize),
-    Return(Vec<Data>),
+
+    /* Function / Blocks */
+    Function(Box<str>, Vec<(Box<str>, Type)>),
+    Block(Box<str>),
+    Call(Box<str>),
+    Return(Vec<ValueKind>),
+    End,
 }
 
-pub fn execute(instructions: Vec<Instruction>) {
-    let mut global_scope = Scope::new();
-    let inbuilt = inbuilts();
-
-    let main_function_index = function::get_function_index(&instructions, "main").unwrap();
-    function::run_function(
-        &instructions,
-        main_function_index,
-        None,
-        &mut global_scope,
-        &inbuilt,
-    );
+pub enum ArithmeticOperator {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Remainder,
 }
 
-fn inbuilts() -> InbuiltFunction {
-    let mut inbuilt_functions = InbuiltFunction::new();
-
-    inbuilt_functions.insert(
-        String::from("std_print"),
-        (
-            vec![(String::from("value"), Type::Any)],
-            Box::new(|arguments| {
-                print!(
-                    "{}",
-                    match arguments.unwrap().get("value").unwrap() {
-                        StoredValue::Null(_) => panic!(),
-                        StoredValue::Value(i) => i.printable_string(),
-                    }
-                );
-                std::io::stdout().flush().unwrap();
-
-                None
-            }),
-        ),
-    );
-
-    inbuilt_functions.insert(
-        String::from("std_println"),
-        (
-            vec![(String::from("value"), Type::Any)],
-            Box::new(|arguments| {
-                println!(
-                    "{}",
-                    match arguments.unwrap().get("value").unwrap() {
-                        StoredValue::Null(_) => panic!(),
-                        StoredValue::Value(i) => i.printable_string(),
-                    }
-                );
-                std::io::stdout().flush().unwrap();
-
-                None
-            }),
-        ),
-    );
-
-    inbuilt_functions
+pub enum RelationalOperator {
+    EqualTo,
+    NotEqualTo,
+    LessThan,
+    LessThanEqualTo,
+    GreaterThan,
+    GreaterThanEqualTo,
 }
 
-fn get<'a>(varible: &'a str, local_scope: &'a Scope, global_scope: &'a Scope) -> &'a StoredValue {
-    if let Some(i) = local_scope.get(varible) {
-        i
-    } else if let Some(i) = global_scope.get(varible) {
-        i
-    } else {
-        panic!()
-    }
+pub enum BitwiseOperator {
+    BitwiseAnd,
+    BitwiseOr,
+    BitwiseXor,
+    BitwiseNot,
+    BitwiseLeftShit,
+    BitwiseRightShit,
 }
 
-fn get_mut<'a>(
-    varible: &'a str,
-    local_scope: &'a mut Scope,
-    global_scope: &'a mut Scope,
-) -> &'a mut StoredValue {
-    if let Some(i) = local_scope.get_mut(varible) {
-        i
-    } else if let Some(i) = global_scope.get_mut(varible) {
-        i
-    } else {
-        panic!()
-    }
+pub enum LogicalOperator {
+    And,
+    Or,
+    Not,
 }

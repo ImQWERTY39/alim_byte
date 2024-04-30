@@ -1,6 +1,5 @@
-#[derive(Debug, Clone)]
 pub enum Token {
-    Identifier(String),
+    Identifier(Box<str>),
     Integer(i64),
     Boolean(bool),
     Float(f64),
@@ -12,8 +11,7 @@ pub fn tokenise(program: &str) -> Vec<Vec<Token>> {
     program
         .lines()
         .map(|x| x.trim())
-        .filter(|x| !x.is_empty())
-        .filter(|x| !x.starts_with(';'))
+        .filter(|x| !x.is_empty() && !x.starts_with(';'))
         .map(tokenise_line)
         .collect()
 }
@@ -94,7 +92,7 @@ impl From<String> for Token {
         }
 
         if valid_identifier(&value) {
-            return Self::Identifier(value);
+            return Self::Identifier(value.into());
         }
 
         panic!()
@@ -102,12 +100,13 @@ impl From<String> for Token {
 }
 
 fn parse_character(value: String) -> Result<char, ()> {
-    if (value.len() != 3) && (value.len() == 4 && value.chars().nth(1).unwrap() != '\\') {
+    let value_chars: Vec<char> = value.as_bytes().iter().map(|x| *x as char).collect();
+    if (value_chars.len() != 3) && (value_chars.len() == 4 && value_chars[1] != '\\') {
         return Err(());
     }
 
-    if value.len() == 4 {
-        match value.chars().nth(2).unwrap() {
+    if value_chars.len() == 4 {
+        match value_chars[2] {
             'n' => return Ok('\n'),
             't' => return Ok('\t'),
             'r' => return Ok('\r'),
@@ -119,7 +118,7 @@ fn parse_character(value: String) -> Result<char, ()> {
         }
     }
 
-    Ok(value.chars().nth(1).unwrap())
+    Ok(value_chars[1])
 }
 
 fn parse_string(value: String) -> Result<String, ()> {

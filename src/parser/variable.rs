@@ -1,42 +1,33 @@
-use super::Instruction;
-use crate::tokeniser::Token;
+use crate::{runtime::Instruction, tokeniser::Token};
 
-pub fn create_variable(arguments: Vec<Token>) -> Result<Instruction, ()> {
+pub fn instruction_create(arguments: Vec<Token>) -> Instruction {
     if arguments.len() != 2 {
-        return Err(());
+        panic!()
     }
 
-    let mut iter = arguments.into_iter();
-    let type_ = iter.next().unwrap();
-    let name = iter.next().unwrap();
+    let var_type = if let Token::Identifier(i) = arguments[0] {
+        i.as_ref().into()
+    } else {
+        panic!()
+    };
 
-    let variable_name = if let Token::Identifier(i) = name {
+    let var_name = if let Token::Identifier(i) = arguments[1] {
         i
     } else {
-        return Err(());
+        panic!()
     };
 
-    let variable_type = match type_ {
-        Token::Identifier(i) => i.into(),
-        _ => return Err(()),
-    };
-
-    Ok(Instruction::CreateVariable(variable_name, variable_type))
+    Instruction::CreateVar(var_name, var_type)
 }
 
-pub fn set_variable(arguments: Vec<Token>) -> Result<Instruction, ()> {
-    if arguments.len() != 2 {
-        return Err(());
-    }
+pub fn instruction_set(arguments: Vec<Token>) -> Instruction {
+    todo!()
+}
 
-    let mut iter = arguments.into_iter();
-    let name = iter.next().unwrap();
-    let value = iter.next().unwrap();
+pub fn instruction_get_index(arguments: Vec<Token>) -> Instruction {
+    todo!()
+}
 
-    let variable_name = match name {
-        Token::Identifier(i) => i,
-        _ => return Err(()),
-    };
-
-    Ok(Instruction::SetVariable(variable_name, value.into()))
+pub fn instruction_set_index(arguments: Vec<Token>) -> Instruction {
+    todo!()
 }
